@@ -26,7 +26,7 @@ public class Main {
         knight.equip(armor);
 
         System.out.println("Equipment:");
-        knight.showEquipment();
+        knight.getEquipment().forEach(System.out::println);
 
         System.out.println("\nTotal price:");
         System.out.println(knight.calculateTotalPrice());

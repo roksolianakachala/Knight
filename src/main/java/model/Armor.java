@@ -1,5 +1,8 @@
 package model;
 
+/**
+ * Клас, що представляє обладунки як тип амуніції.
+ */
 public class Armor extends Ammunition {
 
     private int defense;
@@ -11,5 +14,14 @@ public class Armor extends Ammunition {
 
     public int getDefense() {
         return defense;
+    }
+
+    public void setDefense(int defense) {
+        this.defense = defense;
+    }
+
+    @Override
+    public String toString() {
+        return "Armor: " + super.toString() + ", defense=" + defense;
     }
 }

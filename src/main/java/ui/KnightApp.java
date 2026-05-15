@@ -7,10 +7,13 @@ import javafx.scene.layout.*;
 import javafx.scene.shape.*;
 import javafx.stage.Stage;
 import model.*;
+import service.KnightRepository;
+import service.LoggerService;
 
 public class KnightApp extends Application {
 
     private Knight knight = new Knight("Arthur");
+    private KnightRepository repository = new KnightRepository();
 
     private TextField nameField = new TextField("Arthur");
     private TextField heightField = new TextField("180");
@@ -22,8 +25,12 @@ public class KnightApp extends Application {
 
     private Pane knightPane = new Pane();
 
+    private Button calculateButton = new Button("Calculate and update knight");
+    private Button editButton = new Button("Edit parameters");
+
     @Override
     public void start(Stage stage) {
+        LoggerService.logInfo("Application started.");
         VBox inputBox = new VBox(8);
 
         inputBox.getChildren().addAll(
@@ -35,25 +42,46 @@ public class KnightApp extends Application {
                 new Label("Endurance:"), enduranceField
         );
 
-        Button calculateButton = new Button("Calculate and update knight");
-
         calculateButton.setOnAction(e -> updateKnight());
+        editButton.setOnAction(e -> enableEditing(true));
+        editButton.setDisable(true); // Спочатку кнопка редагування вимкнена
 
         knightPane.setPrefSize(300, 400);
 
         HBox root = new HBox(30);
         root.setStyle("-fx-padding: 20; -fx-font-size: 14;");
-        root.getChildren().addAll(inputBox, knightPane, statsLabel, calculateButton);
+        
+        VBox buttonBox = new VBox(10);
+        buttonBox.getChildren().addAll(calculateButton, editButton);
+
+        root.getChildren().addAll(inputBox, knightPane, statsLabel, buttonBox);
 
         updateKnight();
 
-        Scene scene = new Scene(root, 900, 500);
+        Scene scene = new Scene(root, 950, 500);
         stage.setTitle("Interactive Knight");
         stage.setScene(scene);
         stage.show();
     }
 
+    private void enableEditing(boolean enabled) {
+        LoggerService.logInfo("Editing mode changed to: " + (enabled ? "enabled" : "disabled"));
+        nameField.setEditable(enabled);
+        heightField.setEditable(enabled);
+        weightField.setEditable(enabled);
+        strengthField.setEditable(enabled);
+        enduranceField.setEditable(enabled);
+        
+        calculateButton.setDisable(!enabled);
+        editButton.setDisable(enabled);
+        
+        if (enabled) {
+            nameField.requestFocus();
+        }
+    }
+
     private void updateKnight() {
+        LoggerService.logInfo("Updating knight parameters...");
         StringBuilder errors = new StringBuilder();
 
         String name = nameField.getText().trim();
@@ -67,22 +95,32 @@ public class KnightApp extends Application {
         Integer endurance = validateIntegerInRange(enduranceField, "Endurance", 1, 100, errors);
 
         if (errors.length() > 0) {
+            LoggerService.logWarning("Validation errors occurred:\n" + errors.toString());
             showInputErrors(errors.toString());
             return;
         }
 
-        int attack = strength * 2;
-        int defense = endurance + (int) (weight / 2);
-        int speed = Math.max(10, 100 - (int) (double) weight);
+        LoggerService.logInfo("Knight parameters updated successfully: Name=" + name + ", Height=" + height + ", Weight=" + weight);
+        enableEditing(false);
 
-        drawKnight(height, weight, strength);
+        // Оновлюємо модель Knight
+        knight.setName(name);
+        knight.setHeight(height);
+        knight.setWeight(weight);
+        knight.setStrength(strength);
+        knight.setEndurance(endurance);
+
+        // Зберігаємо в базу даних
+        repository.saveKnight(knight);
+
+        drawKnight(knight);
 
         statsLabel.setText(
-                "Name: " + name +
-                        "\nAttack: " + attack +
-                        "\nDefense: " + defense +
-                        "\nSpeed: " + speed +
-                        "\nBody type: " + getBodyType(height, weight)
+                "Name: " + knight.getName() +
+                        "\nAttack: " + knight.calculateAttack() +
+                        "\nDefense: " + knight.calculateDefense() +
+                        "\nSpeed: " + knight.calculateSpeed() +
+                        "\nBody type: " + knight.getBodyType()
         );
     }
 
@@ -124,11 +162,11 @@ public class KnightApp extends Application {
         alert.showAndWait();
     }
 
-    private void drawKnight(double height, double weight, int strength) {
+    private void drawKnight(Knight knight) {
         knightPane.getChildren().clear();
 
-        double bodyHeight = height / 2;
-        double bodyWidth = weight / 2;
+        double bodyHeight = knight.getHeight() / 2;
+        double bodyWidth = knight.getWeight() / 2;
 
         Circle head = new Circle(150, 60, 25);
 
@@ -145,7 +183,7 @@ public class KnightApp extends Application {
         Line leftArm = new Line(150 - bodyWidth / 2, 120, 80, 170);
         Line rightArm = new Line(150 + bodyWidth / 2, 120, 220, 170);
 
-        Rectangle sword = new Rectangle(220, 120, 8, 60 + strength / 2);
+        Rectangle sword = new Rectangle(220, 120, 8, 60 + (double) knight.getStrength() / 2);
         Rectangle shield = new Rectangle(65, 145, 35, 55);
 
         knightPane.getChildren().addAll(
@@ -153,17 +191,6 @@ public class KnightApp extends Application {
         );
     }
 
-    private String getBodyType(double height, double weight) {
-        double bmi = weight / Math.pow(height / 100, 2);
-
-        if (bmi < 18.5) {
-            return "Thin knight";
-        } else if (bmi < 25) {
-            return "Normal knight";
-        } else {
-            return "Strong / heavy knight";
-        }
-    }
 
     public static void main(String[] args) {
         launch(args);

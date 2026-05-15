@@ -1,5 +1,9 @@
 package model;
 
+/**
+ * Клас, що представляє зброю як тип амуніції.
+ * Демонструє успадкування.
+ */
 public class Weapon extends Ammunition {
 
     private int damage;
@@ -11,5 +15,14 @@ public class Weapon extends Ammunition {
 
     public int getDamage() {
         return damage;
+    }
+
+    public void setDamage(int damage) {
+        this.damage = damage;
+    }
+
+    @Override
+    public String toString() {
+        return "Weapon: " + super.toString() + ", damage=" + damage;
     }
 }
