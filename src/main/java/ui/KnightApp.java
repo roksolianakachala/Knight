@@ -54,24 +54,74 @@ public class KnightApp extends Application {
     }
 
     private void updateKnight() {
-        double height = Double.parseDouble(heightField.getText());
-        double weight = Double.parseDouble(weightField.getText());
-        int strength = Integer.parseInt(strengthField.getText());
-        int endurance = Integer.parseInt(enduranceField.getText());
+        StringBuilder errors = new StringBuilder();
+
+        String name = nameField.getText().trim();
+        if (name.isEmpty()) {
+            errors.append("- Name cannot be empty.\n");
+        }
+
+        Double height = validateDoubleInRange(heightField, "Height", 50.0, 250.0, errors);
+        Double weight = validateDoubleInRange(weightField, "Weight", 30.0, 300.0, errors);
+        Integer strength = validateIntegerInRange(strengthField, "Strength", 1, 100, errors);
+        Integer endurance = validateIntegerInRange(enduranceField, "Endurance", 1, 100, errors);
+
+        if (errors.length() > 0) {
+            showInputErrors(errors.toString());
+            return;
+        }
 
         int attack = strength * 2;
         int defense = endurance + (int) (weight / 2);
-        int speed = Math.max(10, 100 - (int) weight);
+        int speed = Math.max(10, 100 - (int) (double) weight);
 
         drawKnight(height, weight, strength);
 
         statsLabel.setText(
-                "Name: " + nameField.getText() +
+                "Name: " + name +
                         "\nAttack: " + attack +
                         "\nDefense: " + defense +
                         "\nSpeed: " + speed +
                         "\nBody type: " + getBodyType(height, weight)
         );
+    }
+
+    private Double validateDoubleInRange(TextField field, String fieldName, double min, double max, StringBuilder errors) {
+        String text = field.getText().trim();
+        try {
+            double value = Double.parseDouble(text);
+            if (value < min || value > max) {
+                errors.append("- ").append(fieldName).append(" must be from ").append(min).append(" to ").append(max).append(".\n");
+                return null;
+            }
+            return value;
+        } catch (NumberFormatException exception) {
+            errors.append("- Incorrect input in field \"").append(fieldName).append("\". Please enter a number.\n");
+            return null;
+        }
+    }
+
+    private Integer validateIntegerInRange(TextField field, String fieldName, int min, int max, StringBuilder errors) {
+        String text = field.getText().trim();
+        try {
+            int value = Integer.parseInt(text);
+            if (value < min || value > max) {
+                errors.append("- ").append(fieldName).append(" must be from ").append(min).append(" to ").append(max).append(".\n");
+                return null;
+            }
+            return value;
+        } catch (NumberFormatException exception) {
+            errors.append("- Incorrect input in field \"").append(fieldName).append("\". Please enter an integer number.\n");
+            return null;
+        }
+    }
+
+    private void showInputErrors(String errorMessage) {
+        Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.setTitle("Incorrect input");
+        alert.setHeaderText("Please correct the following errors:");
+        alert.setContentText(errorMessage);
+        alert.showAndWait();
     }
 
     private void drawKnight(double height, double weight, int strength) {
