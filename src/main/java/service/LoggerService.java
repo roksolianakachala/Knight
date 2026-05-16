@@ -16,7 +16,9 @@ public class LoggerService {
     static {
         try (FileInputStream fis = new FileInputStream("config.properties")) {
             config.load(fis);
+            logger.info("Конфігурація завантажена з config.properties");
         } catch (IOException e) {
+            logger.warn("Не вдалося завантажити config.properties, використовуються значення за замовчуванням");
         }
     }
 
@@ -26,9 +28,10 @@ public class LoggerService {
 
     private static final String SMTP_HOST = getProperty("mail.smtp.host", "smtp.gmail.com");
     private static final String SMTP_PORT = getProperty("mail.smtp.port", "587");
-    private static final String EMAIL_FROM = getProperty("mail.from", "roksolianakachala@gmail.com");
-    private static final String EMAIL_TO = getProperty("mail.to", "roksolianakachala@gmail.com");
-    private static final String EMAIL_PASSWORD = getProperty("mail.password", "iuta pqsg csik pzbt");
+    private static final String EMAIL_FROM = getProperty("mail.from", "your-email@gmail.com");
+    private static final String EMAIL_TO = getProperty("mail.to", "admin@example.com");
+    private static final String EMAIL_PASSWORD = getProperty("mail.password", "");
+    private static final boolean EMAIL_ENABLED = Boolean.parseBoolean(getProperty("mail.enabled", "false"));
 
     public static void logInfo(String message) {
         logger.info(message);
@@ -48,11 +51,22 @@ public class LoggerService {
     }
 
     private static void sendEmailNotification(String subject, Throwable throwable) {
+        if (!EMAIL_ENABLED) {
+            logger.info("Email сповіщення вимкнено в конфігурації. Встановіть mail.enabled=true для активації.");
+            return;
+        }
+
+        if (EMAIL_PASSWORD.isEmpty()) {
+            logger.warn("Email пароль не налаштовано. Неможливо відправити сповіщення.");
+            return;
+        }
+
         Properties prop = new Properties();
         prop.put("mail.smtp.auth", "true");
         prop.put("mail.smtp.starttls.enable", "true");
         prop.put("mail.smtp.host", SMTP_HOST);
         prop.put("mail.smtp.port", SMTP_PORT);
+        prop.put("mail.smtp.ssl.trust", SMTP_HOST);
 
         Session session = Session.getInstance(prop, new Authenticator() {
             @Override
@@ -65,18 +79,25 @@ public class LoggerService {
             Message message = new MimeMessage(session);
             message.setFrom(new InternetAddress(EMAIL_FROM));
             message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(EMAIL_TO));
-            message.setSubject(subject);
+            message.setSubject("[Knight App] " + subject);
 
-            String content = "An error occurred:\n" + throwable.toString() + "\n\nStack trace:\n";
+            StringBuilder content = new StringBuilder();
+            content.append("КРИТИЧНА ПОМИЛКА в додатку Knight\n\n");
+            content.append("Час: ").append(java.time.LocalDateTime.now()).append("\n\n");
+            content.append("Помилка: ").append(throwable.toString()).append("\n\n");
+            content.append("Stack trace:\n");
             for (StackTraceElement element : throwable.getStackTrace()) {
-                content += element.toString() + "\n";
+                content.append("  ").append(element.toString()).append("\n");
             }
-            message.setText(content);
-            logger.info("Attempting to send email notification about critical error...");
-            logger.info("Email notification simulated successfully.");
+            
+            message.setText(content.toString());
+            
+            logger.info("Спроба відправити email сповіщення про критичну помилку...");
+            Transport.send(message);
+            logger.info("Email сповіщення успішно відправлено на " + EMAIL_TO);
 
         } catch (MessagingException e) {
-            logger.error("Failed to send email notification", e);
+            logger.error("Не вдалося відправити email сповіщення", e);
         }
     }
 }

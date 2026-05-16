@@ -13,43 +13,45 @@ import service.KnightRepository;
 import service.LoggerService;
 import java.io.*;
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class KnightApp extends Application {
 
     private Knight knight = new Knight("");
-    private KnightRepository repository = new KnightRepository();
+    private final KnightRepository repository = new KnightRepository();
+    private List<Ammunition> allAmmunition = new ArrayList<>(); // Каталог всієї доступної амуніції
 
-    private TextField nameField = new TextField("");
-    private TextField heightField = new TextField("");
-    private TextField weightField = new TextField("");
-    private TextField strengthField = new TextField("");
-    private TextField enduranceField = new TextField("");
+    private final TextField nameField = new TextField("");
+    private final TextField heightField = new TextField("");
+    private final TextField weightField = new TextField("");
+    private final TextField strengthField = new TextField("");
+    private final TextField enduranceField = new TextField("");
 
-    private Label statsLabel = new Label();
-    private ListView<Ammunition> ammunitionListView = new ListView<>();
-    private Label summaryLabel = new Label("Загальна вартість: 0.0 | Вага: 0.0");
-    private Label overweightWarning = new Label("");
+    private final Label statsLabel = new Label();
+    private final ListView<Ammunition> catalogListView = new ListView<>(); // Каталог всієї амуніції
+    private final ListView<Ammunition> ammunitionListView = new ListView<>(); // Екіпірування лицаря
+    private final Label summaryLabel = new Label("Загальна вартість: 0.0 | Вага: 0.0");
+    private final Label overweightWarning = new Label("");
 
-    // Поля пошуку
-    private TextField minPriceField = new TextField("");
-    private TextField maxPriceField = new TextField("");
-    private TextField minWeightField = new TextField("");
-    private TextField maxWeightField = new TextField("");
-    private TextField materialSearchField = new TextField("");
-    private ComboBox<String> typeSearchCombo = new ComboBox<>(FXCollections.observableArrayList("", "Sword", "Armor", "Helmet", "Shield", "Boots"));
-    private TextField minProtField = new TextField("");
+    private final TextField minPriceField = new TextField("");
+    private final TextField maxPriceField = new TextField("");
+    private final TextField minWeightField = new TextField("");
+    private final TextField maxWeightField = new TextField("");
+    private final TextField materialSearchField = new TextField("");
+    private final ComboBox<String> typeSearchCombo = new ComboBox<>(FXCollections.observableArrayList("", "Sword", "Armor", "Helmet", "Shield", "Boots"));
+    private final TextField minProtField = new TextField("");
 
-    private Pane knightPane = new Pane();
+    private final Pane knightPane = new Pane();
 
-    private Button calculateButton = new Button("Оновити дані лицаря");
-    private Button editButton = new Button("Редагувати параметри");
-    private Button loadKnightsButton = new Button("Зчитати лицарів");
-    private Button editSelectedKnightButton = new Button("Редагувати вибраного лицаря");
-    private Button addNewKnightButton = new Button("Додати нового лицаря");
+    private final Button calculateButton = new Button("Оновити дані лицаря");
+    private final Button editButton = new Button("Редагувати параметри");
+    private final Button loadKnightsButton = new Button("Зчитати лицарів");
+    private final Button editSelectedKnightButton = new Button("Редагувати вибраного лицаря");
+    private final Button addNewKnightButton = new Button("Додати нового лицаря");
 
-    private ListView<Knight> knightsListView = new ListView<>();
+    private final ListView<Knight> knightsListView = new ListView<>();
 
-    private ChoiceBox<String> sortChoice = new ChoiceBox<>(FXCollections.observableArrayList("Вагою", "Ціною", "Назвою", "Захистом"));
+    private final ChoiceBox<String> sortChoice = new ChoiceBox<>(FXCollections.observableArrayList("Вагою", "Ціною", "Назвою", "Захистом"));
 
     @Override
     public void start(Stage stage) {
@@ -58,6 +60,7 @@ public class KnightApp extends Application {
         
         // repository.createTables(); // Тепер ініціалізація бази йде через DatabaseInitializer
         loadKnightFromDB();
+        loadAllAmmunitionCatalog();
 
         VBox knightParamsBox = new VBox(8);
         knightParamsBox.setPadding(new Insets(10));
@@ -75,8 +78,7 @@ public class KnightApp extends Application {
         editButton.setOnAction(e -> enableEditing(true));
         editButton.setDisable(true);
 
-        // Налаштування списку лицарів
-        knightsListView.setCellFactory(param -> new ListCell<Knight>() {
+        knightsListView.setCellFactory(param -> new ListCell<>() {
             @Override
             protected void updateItem(Knight k, boolean empty) {
                 super.updateItem(k, empty);
@@ -104,8 +106,24 @@ public class KnightApp extends Application {
         editSelectedKnightButton.setOnAction(e -> editSelectedKnight());
         addNewKnightButton.setOnAction(e -> addNewKnight());
 
-        // Налаштування списку амуніції
-        ammunitionListView.setCellFactory(param -> new ListCell<Ammunition>() {
+        // Налаштування списку каталогу амуніції
+        catalogListView.setCellFactory(param -> new ListCell<>() {
+            @Override
+            protected void updateItem(Ammunition item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    String info = String.format("%s: %s (%.1fкг, %.1fгрн, %s)", 
+                        item.getClass().getSimpleName(), item.getName(), item.getWeight(), item.getPrice(), item.getMaterial());
+                    if (item instanceof Armor) info += " [Захист: " + ((Armor) item).getDefense() + "]";
+                    if (item instanceof Weapon) info += " [Урон: " + ((Weapon) item).getDamage() + "]";
+                    setText(info);
+                }
+            }
+        });
+
+        ammunitionListView.setCellFactory(param -> new ListCell<>() {
             @Override
             protected void updateItem(Ammunition item, boolean empty) {
                 super.updateItem(item, empty);
@@ -124,8 +142,23 @@ public class KnightApp extends Application {
         VBox searchBox = new VBox(5);
         searchBox.setPadding(new Insets(10));
         searchBox.setStyle("-fx-border-color: lightgray; -fx-border-radius: 5;");
+        
+        Button equipFromCatalogBtn = new Button("Екіпірувати вибране");
+        equipFromCatalogBtn.setOnAction(e -> {
+            Ammunition selected = catalogListView.getSelectionModel().getSelectedItem();
+            if (selected != null) {
+                knight.equip(selected);
+                repository.saveKnight(knight);
+                updateEquipmentList(knight.getEquipment());
+                LoggerService.logInfo("Екіпіровано: " + selected.getName());
+            }
+        });
+        
         searchBox.getChildren().addAll(
-            new Label("Пошук амуніції:"),
+            new Label("Каталог амуніції:"),
+            catalogListView,
+            equipFromCatalogBtn,
+            new Label("Пошук/Фільтр:"),
             new HBox(5, new Label("Ціна від:"), minPriceField, new Label("до:"), maxPriceField),
             new HBox(5, new Label("Вага від:"), minWeightField, new Label("до:"), maxWeightField),
             new HBox(5, new Label("Матеріал:"), materialSearchField, new Label("Тип:"), typeSearchCombo),
@@ -133,8 +166,8 @@ public class KnightApp extends Application {
             new Button("Застосувати фільтр") {{
                 setOnAction(e -> applyFilter());
             }},
-            new Button("Скинути фільтр") {{
-                setOnAction(e -> updateAmmunitionList(knight.getEquipment()));
+            new Button("Показати весь каталог") {{
+                setOnAction(e -> showAllCatalog());
             }}
         );
 
@@ -156,7 +189,7 @@ public class KnightApp extends Application {
             if (selected != null) {
                 knight.unequip(selected);
                 repository.saveKnight(knight);
-                updateAmmunitionList(knight.getEquipment());
+                updateEquipmentList(knight.getEquipment());
             }
         });
 
@@ -169,7 +202,7 @@ public class KnightApp extends Application {
                 case "Назвою": knight.sortByName(); break;
                 case "Захистом": knight.sortByProtection(); break;
             }
-            updateAmmunitionList(knight.getEquipment());
+            updateEquipmentList(knight.getEquipment());
         });
 
         Button compareKitsButton = new Button("Порівняти комплекти");
@@ -197,7 +230,7 @@ public class KnightApp extends Application {
         mainContent.setPadding(new Insets(15));
 
         updateKnight();
-        updateAmmunitionList(knight.getEquipment());
+        updateEquipmentList(knight.getEquipment());
 
         Scene scene = new Scene(mainContent, 1400, 700);
         stage.setTitle("Лицарський зброяр");
@@ -218,7 +251,6 @@ public class KnightApp extends Application {
                 LoggerService.logInfo("Дані лицаря завантажено з бази даних.");
             } else {
                 LoggerService.logInfo("База даних порожня. Очікуємо введення даних від користувача.");
-                // Не створюємо дефолтного лицаря, залишаємо поля порожніми
             }
         } catch (Exception e) {
             LoggerService.logCriticalError("Помилка завантаження даних. Очікуємо введення даних.", e);
@@ -235,22 +267,69 @@ public class KnightApp extends Application {
             String type = typeSearchCombo.getValue();
             Integer minProt = minProtField.getText().isEmpty() ? null : Integer.parseInt(minProtField.getText());
 
-            List<Ammunition> filtered = knight.findByCriteria(minP, maxP, minW, maxW, type, mat, minProt);
-            updateAmmunitionList(filtered);
+            List<Ammunition> filtered = filterAmmunition(allAmmunition, minP, maxP, minW, maxW, type, mat, minProt);
+            
+            if (filtered.isEmpty()) {
+                LoggerService.logInfo("Пошук не дав результатів з параметрами: ціна[" + minP + "-" + maxP + "]");
+                Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                alert.setTitle("Результат пошуку");
+                alert.setHeaderText("Нічого не знайдено");
+                alert.setContentText("За вказаними критеріями амуніції не знайдено.");
+                alert.showAndWait();
+            }
+            
+            updateCatalogList(filtered);
+            LoggerService.logInfo("Знайдено " + filtered.size() + " предметів амуніції");
         } catch (NumberFormatException ex) {
             showInputErrors("Некоректні дані для фільтрації.");
         }
     }
-
-    private void initializeEquipment() {
-        knight.equip(new Sword("Сталевий меч", 5.5, 500, "Сталь", 20));
-        knight.equip(new Helmet("Залізний шолом", 2.0, 200, "Залізо", 10));
-        knight.equip(new Armor("Повний латний обладунок", 15.0, 1500, "Сталь", 50));
-        knight.equip(new Boots("Шкіряні чоботи", 1.2, 150, "Шкіра", 5));
-        knight.equip(new Shield("Дерев'яний щит", 3.0, 100, "Дерево", 15));
+    
+    private List<Ammunition> filterAmmunition(List<Ammunition> items, Double minPrice, Double maxPrice, 
+                                               Double minWeight, Double maxWeight, String type, 
+                                               String material, Integer minProt) {
+        return items.stream()
+                .filter(item -> (minPrice == null || item.getPrice() >= minPrice))
+                .filter(item -> (maxPrice == null || item.getPrice() <= maxPrice))
+                .filter(item -> (minWeight == null || item.getWeight() >= minWeight))
+                .filter(item -> (maxWeight == null || item.getWeight() <= maxWeight))
+                .filter(item -> (type == null || type.isEmpty() || item.getClass().getSimpleName().equalsIgnoreCase(type)))
+                .filter(item -> (material == null || material.isEmpty() || item.getMaterial().toLowerCase().contains(material.toLowerCase())))
+                .filter(item -> {
+                    if (minProt == null) return true;
+                    if (item instanceof Armor) return ((Armor) item).getDefense() >= minProt;
+                    return false;
+                })
+                .collect(Collectors.toList());
     }
-
-    private void updateAmmunitionList(java.util.List<Ammunition> items) {
+    
+    private void showAllCatalog() {
+        updateCatalogList(allAmmunition);
+        minPriceField.clear();
+        maxPriceField.clear();
+        minWeightField.clear();
+        maxWeightField.clear();
+        materialSearchField.clear();
+        typeSearchCombo.setValue("");
+        minProtField.clear();
+        LoggerService.logInfo("Показано весь каталог амуніції: " + allAmmunition.size() + " предметів");
+    }
+    
+    private void loadAllAmmunitionCatalog() {
+        try {
+            allAmmunition = repository.getAllAmmunition();
+            updateCatalogList(allAmmunition);
+            LoggerService.logInfo("Завантажено каталог амуніції: " + allAmmunition.size() + " предметів");
+        } catch (Exception e) {
+            LoggerService.logCriticalError("Помилка завантаження каталогу амуніції", e);
+        }
+    }
+    
+    private void updateCatalogList(List<Ammunition> items) {
+        catalogListView.setItems(FXCollections.observableArrayList(items));
+    }
+    
+    private void updateEquipmentList(List<Ammunition> items) {
         ammunitionListView.setItems(FXCollections.observableArrayList(items));
         double totalWeight = knight.calculateTotalWeight();
         summaryLabel.setText(String.format("Загальна вартість: %.1f | Вага: %.1f кг", 
@@ -262,7 +341,7 @@ public class KnightApp extends Application {
             overweightWarning.setText("");
         }
     }
-
+    
     private void showAmmoDialog(Ammunition existing) {
         Stage dialog = new Stage();
         VBox root = new VBox(10);
@@ -292,14 +371,13 @@ public class KnightApp extends Application {
                 int spec = Integer.parseInt(specialF.getText());
                 String type = typeCombo.getValue();
                 
-                Ammunition newItem;
-                switch (type) {
-                    case "Sword": newItem = new Sword(name, w, p, mat, spec); break;
-                    case "Helmet": newItem = new Helmet(name, w, p, mat, spec); break;
-                    case "Shield": newItem = new Shield(name, w, p, mat, spec); break;
-                    case "Boots": newItem = new Boots(name, w, p, mat, spec); break;
-                    default: newItem = new Armor(name, w, p, mat, spec); break;
-                }
+                Ammunition newItem = switch (type) {
+                    case "Sword" -> new Sword(name, w, p, mat, spec);
+                    case "Helmet" -> new Helmet(name, w, p, mat, spec);
+                    case "Shield" -> new Shield(name, w, p, mat, spec);
+                    case "Boots" -> new Boots(name, w, p, mat, spec);
+                    default -> new Armor(name, w, p, mat, spec);
+                };
                 
                 if (existing != null) {
                     newItem.setId(existing.getId());
@@ -309,7 +387,7 @@ public class KnightApp extends Application {
                     knight.equip(newItem);
                 }
                 repository.saveKnight(knight);
-                updateAmmunitionList(knight.getEquipment());
+                updateEquipmentList(knight.getEquipment());
                 dialog.close();
             } catch (Exception ex) {
                 showInputErrors("Перевірте введені дані.");
@@ -332,14 +410,38 @@ public class KnightApp extends Application {
     }
 
     private void compareKits() {
-        Knight opponent = new Knight("Противник");
-        opponent.equip(new Sword("Меч темряви", 7.0, 1000, "Обсидіан", 35));
-        opponent.equip(new Armor("Важка броня", 25.0, 2000, "Міфріл", 70));
+        Knight opponent = new Knight("Драконячий Воїн");
+        
+        // Екіпірування противника найкращими драконячими предметами з нового каталогу
+        allAmmunition.stream()
+            .filter(item -> item.getName().equals("Меч із драконячої кістки"))
+            .findFirst()
+            .ifPresent(opponent::equip);
+            
+        allAmmunition.stream()
+            .filter(item -> item.getName().equals("Драконяча броня імператора"))
+            .findFirst()
+            .ifPresent(opponent::equip);
+            
+        allAmmunition.stream()
+            .filter(item -> item.getName().equals("Драконячий бойовий шолом"))
+            .findFirst()
+            .ifPresent(opponent::equip);
+            
+        allAmmunition.stream()
+            .filter(item -> item.getName().equals("Драконячий щит володаря"))
+            .findFirst()
+            .ifPresent(opponent::equip);
+            
+        allAmmunition.stream()
+            .filter(item -> item.getName().equals("Драконячі чоботи володаря"))
+            .findFirst()
+            .ifPresent(opponent::equip);
         
         String comparisonResult = Knight.compareKits(knight, opponent);
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setTitle("Порівняння комплектів");
-        alert.setHeaderText("Ваш комплект проти Комплекту Темряви");
+        alert.setHeaderText("Ваш комплект проти Драконячого Воїна");
         alert.setContentText(comparisonResult);
         alert.showAndWait();
     }
@@ -392,7 +494,7 @@ public class KnightApp extends Application {
                 knight.unequip(a);
             }
             newEq.forEach(knight::equip);
-            updateAmmunitionList(knight.getEquipment());
+            updateEquipmentList(knight.getEquipment());
             LoggerService.logInfo("Амуніцію завантажено з файлу.");
         } catch (Exception e) {
             showInputErrors("Помилка завантаження файлу.");
@@ -429,8 +531,9 @@ public class KnightApp extends Application {
         Integer strength = validateIntegerInRange(strengthField, "Сила", 1, 100, errors);
         Integer endurance = validateIntegerInRange(enduranceField, "Витривалість", 1, 100, errors);
 
-        if (errors.length() > 0) {
-            LoggerService.logWarning("Виявлено помилки валідації:\n" + errors.toString());
+        if (!errors.isEmpty()) {
+            String errorMessage = "Виявлено помилки валідації:\n" + errors;
+            LoggerService.logCriticalError(errorMessage, new IllegalArgumentException("Некоректний ввід користувача"));
             showInputErrors(errors.toString());
             return;
         }
@@ -438,13 +541,11 @@ public class KnightApp extends Application {
         LoggerService.logInfo("Параметри лицаря успішно оновлено: Ім'я=" + name + ", Зріст=" + height + ", Вага=" + weight);
         enableEditing(false);
 
-        // Оновлюємо модель Knight
         knight.setName(name);
-        knight.setHeight(height);
-        knight.setWeight(weight);
-        knight.setStrength(strength);
-        knight.setEndurance(endurance);
-
+        if (height != null) knight.setHeight(height);
+        if (weight != null) knight.setWeight(weight);
+        if (strength != null) knight.setStrength(strength);
+        if (endurance != null) knight.setEndurance(endurance);
         // Зберігаємо в базу даних
         repository.saveKnight(knight);
 
@@ -465,7 +566,7 @@ public class KnightApp extends Application {
         );
     }
 
-    private Double validateDoubleInRange(TextField field, String fieldName, double min, double max, StringBuilder errors) {
+    private Double validateDoubleInRange(TextField field, String fieldName, final double min, final double max, StringBuilder errors) {
         String text = field.getText().trim();
         try {
             double value = Double.parseDouble(text);
@@ -480,7 +581,7 @@ public class KnightApp extends Application {
         }
     }
 
-    private Integer validateIntegerInRange(TextField field, String fieldName, int min, int max, StringBuilder errors) {
+    private Integer validateIntegerInRange(TextField field, String fieldName, final int min, final int max, StringBuilder errors) {
         String text = field.getText().trim();
         try {
             int value = Integer.parseInt(text);
@@ -520,17 +621,13 @@ public class KnightApp extends Application {
             showInputErrors("Будь ласка, виберіть лицаря зі списку.");
             return;
         }
-
-        // Завантажуємо вибраного лицаря в поля редагування
         this.knight = selected;
         nameField.setText(knight.getName());
         heightField.setText(String.valueOf(knight.getHeight()));
         weightField.setText(String.valueOf(knight.getWeight()));
         strengthField.setText(String.valueOf(knight.getStrength()));
         enduranceField.setText(String.valueOf(knight.getEndurance()));
-
-        // Оновлюємо амуніцію
-        updateAmmunitionList(knight.getEquipment());
+        updateEquipmentList(knight.getEquipment());
 
         // Малюємо лицаря
         drawKnight(knight);
@@ -551,7 +648,6 @@ public class KnightApp extends Application {
     }
 
     private void addNewKnight() {
-        // Створюємо нового лицаря з порожніми полями
         this.knight = new Knight("");
         nameField.setText("");
         heightField.setText("");
@@ -559,16 +655,12 @@ public class KnightApp extends Application {
         strengthField.setText("");
         enduranceField.setText("");
 
-        // Очищаємо амуніцію
-        updateAmmunitionList(knight.getEquipment());
+        updateEquipmentList(knight.getEquipment());
 
-        // Очищаємо малюнок
         knightPane.getChildren().clear();
 
-        // Очищаємо статистику
         statsLabel.setText("");
 
-        // Увімкнути режим редагування
         enableEditing(true);
 
         LoggerService.logInfo("Створення нового лицаря.");
@@ -588,7 +680,6 @@ public class KnightApp extends Application {
                 bodyWidth,
                 bodyHeight
         );
-
         Line leftLeg = new Line(135, 90 + bodyHeight, 110, 90 + bodyHeight + 70);
         Line rightLeg = new Line(165, 90 + bodyHeight, 190, 90 + bodyHeight + 70);
 
@@ -602,8 +693,6 @@ public class KnightApp extends Application {
                 head, body, leftLeg, rightLeg, leftArm, rightArm, sword, shield
         );
     }
-
-
     public static void main(String[] args) {
         launch(args);
     }
