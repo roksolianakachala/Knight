@@ -17,7 +17,6 @@ public class LoggerService {
         try (FileInputStream fis = new FileInputStream("config.properties")) {
             config.load(fis);
         } catch (IOException e) {
-            // Файл конфігурації необов'язковий
         }
     }
 

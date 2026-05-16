@@ -1,13 +1,9 @@
 package model;
 
-/**
- * Клас, що представляє Шолом як частину обладунків.
- * Демонструє успадкування від Armor.
- */
 public class Helmet extends Armor {
 
-    public Helmet(String name, double weight, double price, int defense) {
-        super(name, weight, price, defense);
+    public Helmet(String name, double weight, double price, String material, int defense) {
+        super(name, weight, price, material, defense);
     }
 
     @Override

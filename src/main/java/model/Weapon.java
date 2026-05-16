@@ -1,15 +1,11 @@
 package model;
 
-/**
- * Клас, що представляє зброю як тип амуніції.
- * Демонструє успадкування.
- */
 public class Weapon extends Ammunition {
 
     private int damage;
 
-    public Weapon(String name, double weight, double price, int damage) {
-        super(name, weight, price);
+    public Weapon(String name, double weight, double price, String material, int damage) {
+        super(name, weight, price, material);
         this.damage = damage;
     }
 
