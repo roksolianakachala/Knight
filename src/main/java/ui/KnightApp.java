@@ -9,11 +9,11 @@ import javafx.scene.layout.*;
 import javafx.scene.shape.*;
 import javafx.stage.Stage;
 import model.*;
+import service.AmmunitionFilter;
 import service.KnightRepository;
 import service.LoggerService;
 import java.io.*;
 import java.util.*;
-import java.util.stream.Collectors;
 
 public class KnightApp extends Application {
 
@@ -57,6 +57,7 @@ public class KnightApp extends Application {
     @Override
     public void start(Stage stage) {
         LoggerService.logInfo("Додаток запущено.");
+        configureControlIds();
         overweightWarning.setStyle("-fx-text-fill: red; -fx-font-weight: bold;");
         
         // repository.createTables(); // Тепер ініціалізація бази йде через DatabaseInitializer
@@ -147,6 +148,7 @@ public class KnightApp extends Application {
         updateProtectionFilterAvailability();
         
         Button equipFromCatalogBtn = new Button("Екіпірувати вибране");
+        equipFromCatalogBtn.setId("equipFromCatalogButton");
         equipFromCatalogBtn.setOnAction(e -> {
             Ammunition selected = catalogListView.getSelectionModel().getSelectedItem();
             if (selected != null) {
@@ -157,6 +159,14 @@ public class KnightApp extends Application {
             }
         });
         
+        Button applyFilterButton = new Button("Застосувати фільтр");
+        applyFilterButton.setId("applyFilterButton");
+        applyFilterButton.setOnAction(e -> applyFilter());
+
+        Button showAllCatalogButton = new Button("Показати весь каталог");
+        showAllCatalogButton.setId("showAllCatalogButton");
+        showAllCatalogButton.setOnAction(e -> showAllCatalog());
+
         searchBox.getChildren().addAll(
             new Label("Каталог амуніції:"),
             catalogListView,
@@ -166,27 +176,26 @@ public class KnightApp extends Application {
             new HBox(5, new Label("Вага від:"), minWeightField, new Label("до:"), maxWeightField),
             new HBox(5, new Label("Матеріал:"), materialSearchField, new Label("Тип:"), typeSearchCombo),
             new HBox(5, new Label("Захист від:"), minProtField, new Label("до:"), maxProtField),
-            new Button("Застосувати фільтр") {{
-                setOnAction(e -> applyFilter());
-            }},
-            new Button("Показати весь каталог") {{
-                setOnAction(e -> showAllCatalog());
-            }}
+            applyFilterButton,
+            showAllCatalogButton
         );
 
         VBox ammoActionsBox = new VBox(10);
         ammoActionsBox.setPadding(new Insets(10));
         
         Button addAmmoButton = new Button("Додати амуніцію");
+        addAmmoButton.setId("addAmmoButton");
         addAmmoButton.setOnAction(e -> showAmmoDialog(null));
         
         Button editAmmoButton = new Button("Редагувати вибране");
+        editAmmoButton.setId("editAmmoButton");
         editAmmoButton.setOnAction(e -> {
             Ammunition selected = ammunitionListView.getSelectionModel().getSelectedItem();
             if (selected != null) showAmmoDialog(selected);
         });
         
         Button deleteAmmoButton = new Button("Видалити вибране");
+        deleteAmmoButton.setId("deleteAmmoButton");
         deleteAmmoButton.setOnAction(e -> {
             Ammunition selected = ammunitionListView.getSelectionModel().getSelectedItem();
             if (selected != null) {
@@ -209,12 +218,15 @@ public class KnightApp extends Application {
         });
 
         Button compareKitsButton = new Button("Порівняти комплекти");
+        compareKitsButton.setId("compareKitsButton");
         compareKitsButton.setOnAction(e -> compareKits());
 
         Button saveToFileButton = new Button("Зберегти у файл");
+        saveToFileButton.setId("saveToFileButton");
         saveToFileButton.setOnAction(e -> saveToFile());
         
         Button loadFromFileButton = new Button("Завантажити з файлу");
+        loadFromFileButton.setId("loadFromFileButton");
         loadFromFileButton.setOnAction(e -> loadFromFile());
 
         ammoActionsBox.getChildren().addAll(
@@ -239,6 +251,35 @@ public class KnightApp extends Application {
         stage.setTitle("Лицарський зброяр");
         stage.setScene(scene);
         stage.show();
+    }
+
+    private void configureControlIds() {
+        nameField.setId("nameField");
+        heightField.setId("heightField");
+        weightField.setId("weightField");
+        strengthField.setId("strengthField");
+        enduranceField.setId("enduranceField");
+        statsLabel.setId("statsLabel");
+        catalogListView.setId("catalogListView");
+        ammunitionListView.setId("ammunitionListView");
+        summaryLabel.setId("summaryLabel");
+        overweightWarning.setId("overweightWarning");
+        minPriceField.setId("minPriceField");
+        maxPriceField.setId("maxPriceField");
+        minWeightField.setId("minWeightField");
+        maxWeightField.setId("maxWeightField");
+        materialSearchField.setId("materialSearchField");
+        typeSearchCombo.setId("typeSearchCombo");
+        minProtField.setId("minProtField");
+        maxProtField.setId("maxProtField");
+        knightPane.setId("knightPane");
+        calculateButton.setId("calculateButton");
+        editButton.setId("editButton");
+        loadKnightsButton.setId("loadKnightsButton");
+        editSelectedKnightButton.setId("editSelectedKnightButton");
+        addNewKnightButton.setId("addNewKnightButton");
+        knightsListView.setId("knightsListView");
+        sortChoice.setId("sortChoice");
     }
 
     private void loadKnightFromDB() {
@@ -275,7 +316,7 @@ public class KnightApp extends Application {
                 maxProt = null;
             }
 
-            List<Ammunition> filtered = filterAmmunition(allAmmunition, minP, maxP, minW, maxW, type, mat, minProt, maxProt);
+            List<Ammunition> filtered = AmmunitionFilter.filter(allAmmunition, minP, maxP, minW, maxW, type, mat, minProt, maxProt);
             
             if (filtered.isEmpty()) {
                 LoggerService.logInfo("Пошук не дав результатів з параметрами: ціна[" + minP + "-" + maxP + "]");
@@ -291,28 +332,6 @@ public class KnightApp extends Application {
         } catch (NumberFormatException ex) {
             showInputErrors("Некоректні дані для фільтрації.");
         }
-    }
-    
-    private List<Ammunition> filterAmmunition(List<Ammunition> items, Double minPrice, Double maxPrice, 
-                                               Double minWeight, Double maxWeight, String type, 
-                                               String material, Integer minProt, Integer maxProt) {
-        return items.stream()
-                .filter(item -> (minPrice == null || item.getPrice() >= minPrice))
-                .filter(item -> (maxPrice == null || item.getPrice() <= maxPrice))
-                .filter(item -> (minWeight == null || item.getWeight() >= minWeight))
-                .filter(item -> (maxWeight == null || item.getWeight() <= maxWeight))
-                .filter(item -> (type == null || type.isEmpty() || item.getClass().getSimpleName().equalsIgnoreCase(type)))
-                .filter(item -> (material == null || material.isEmpty() || item.getMaterial().toLowerCase().contains(material.toLowerCase())))
-                .filter(item -> {
-                    if (minProt == null && maxProt == null) return true;
-                    if (item instanceof Armor armor) {
-                        int defense = armor.getDefense();
-                        return (minProt == null || defense >= minProt)
-                                && (maxProt == null || defense <= maxProt);
-                    }
-                    return false;
-                })
-                .collect(Collectors.toList());
     }
     
     private void showAllCatalog() {
@@ -375,20 +394,27 @@ public class KnightApp extends Application {
         root.setPadding(new Insets(10));
         
         TextField nameF = new TextField(existing != null ? existing.getName() : "");
+        nameF.setId("ammoNameField");
         TextField weightF = new TextField(existing != null ? String.valueOf(existing.getWeight()) : "");
+        weightF.setId("ammoWeightField");
         TextField priceF = new TextField(existing != null ? String.valueOf(existing.getPrice()) : "");
+        priceF.setId("ammoPriceField");
         TextField materialF = new TextField(existing != null ? existing.getMaterial() : "");
+        materialF.setId("ammoMaterialField");
         
         ComboBox<String> typeCombo = new ComboBox<>(FXCollections.observableArrayList("Sword", "Armor", "Helmet", "Shield", "Boots"));
+        typeCombo.setId("ammoTypeCombo");
         if (existing != null) typeCombo.setValue(existing.getClass().getSimpleName());
         else typeCombo.setValue("Armor");
         
         TextField specialF = new TextField(); // damage or defense
+        specialF.setId("ammoSpecialField");
         specialF.setPromptText("Урон або Захист");
         if (existing instanceof Weapon) specialF.setText(String.valueOf(((Weapon) existing).getDamage()));
         else if (existing instanceof Armor) specialF.setText(String.valueOf(((Armor) existing).getDefense()));
 
         Button saveBtn = new Button("Зберегти");
+        saveBtn.setId("ammoSaveButton");
         saveBtn.setOnAction(e -> {
             try {
                 String name = nameF.getText();
