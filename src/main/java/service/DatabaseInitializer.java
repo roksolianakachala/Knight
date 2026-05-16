@@ -76,8 +76,8 @@ public class DatabaseInitializer {
             
             // ПОВНІСТЮ ОЧИСТИТИ старий каталог перед додаванням нового
             System.out.println("Очищення старого каталогу амуніції (було " + currentCount + " предметів)...");
-            stmt.executeUpdate("DELETE FROM ammunition");
             stmt.executeUpdate("DELETE FROM knight_equipment"); // Очистити зв'язки
+            stmt.executeUpdate("DELETE FROM ammunition");
             
             System.out.println("Наповнення нового реалістичного каталогу амуніції (25 предметів)...");
             
@@ -119,7 +119,7 @@ public class DatabaseInitializer {
             
             // ========== ЩИТИ (5 предметів) ==========
             stmt.executeUpdate("INSERT INTO ammunition (name, type, material, weight, price, protection_level, damage) VALUES " +
-                "('Дерев\\'яний щит новобранця', 'Shield', 'Дерево', 3.0, 120, 15, 0)");
+                "('Дерев''яний щит новобранця', 'Shield', 'Дерево', 3.0, 120, 15, 0)");
             stmt.executeUpdate("INSERT INTO ammunition (name, type, material, weight, price, protection_level, damage) VALUES " +
                 "('Посилений щит піхотинця', 'Shield', 'Дерево + залізо', 5.0, 500, 35, 0)");
             stmt.executeUpdate("INSERT INTO ammunition (name, type, material, weight, price, protection_level, damage) VALUES " +

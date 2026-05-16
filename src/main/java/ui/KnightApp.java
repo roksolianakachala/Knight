@@ -40,6 +40,7 @@ public class KnightApp extends Application {
     private final TextField materialSearchField = new TextField("");
     private final ComboBox<String> typeSearchCombo = new ComboBox<>(FXCollections.observableArrayList("", "Sword", "Armor", "Helmet", "Shield", "Boots"));
     private final TextField minProtField = new TextField("");
+    private final TextField maxProtField = new TextField("");
 
     private final Pane knightPane = new Pane();
 
@@ -142,6 +143,8 @@ public class KnightApp extends Application {
         VBox searchBox = new VBox(5);
         searchBox.setPadding(new Insets(10));
         searchBox.setStyle("-fx-border-color: lightgray; -fx-border-radius: 5;");
+        typeSearchCombo.valueProperty().addListener((obs, oldType, newType) -> updateProtectionFilterAvailability());
+        updateProtectionFilterAvailability();
         
         Button equipFromCatalogBtn = new Button("Екіпірувати вибране");
         equipFromCatalogBtn.setOnAction(e -> {
@@ -162,7 +165,7 @@ public class KnightApp extends Application {
             new HBox(5, new Label("Ціна від:"), minPriceField, new Label("до:"), maxPriceField),
             new HBox(5, new Label("Вага від:"), minWeightField, new Label("до:"), maxWeightField),
             new HBox(5, new Label("Матеріал:"), materialSearchField, new Label("Тип:"), typeSearchCombo),
-            new HBox(5, new Label("Мін. захист:"), minProtField),
+            new HBox(5, new Label("Захист від:"), minProtField, new Label("до:"), maxProtField),
             new Button("Застосувати фільтр") {{
                 setOnAction(e -> applyFilter());
             }},
@@ -266,8 +269,13 @@ public class KnightApp extends Application {
             String mat = materialSearchField.getText().trim();
             String type = typeSearchCombo.getValue();
             Integer minProt = minProtField.getText().isEmpty() ? null : Integer.parseInt(minProtField.getText());
+            Integer maxProt = maxProtField.getText().isEmpty() ? null : Integer.parseInt(maxProtField.getText());
+            if (isWeaponTypeSelected(type)) {
+                minProt = null;
+                maxProt = null;
+            }
 
-            List<Ammunition> filtered = filterAmmunition(allAmmunition, minP, maxP, minW, maxW, type, mat, minProt);
+            List<Ammunition> filtered = filterAmmunition(allAmmunition, minP, maxP, minW, maxW, type, mat, minProt, maxProt);
             
             if (filtered.isEmpty()) {
                 LoggerService.logInfo("Пошук не дав результатів з параметрами: ціна[" + minP + "-" + maxP + "]");
@@ -287,7 +295,7 @@ public class KnightApp extends Application {
     
     private List<Ammunition> filterAmmunition(List<Ammunition> items, Double minPrice, Double maxPrice, 
                                                Double minWeight, Double maxWeight, String type, 
-                                               String material, Integer minProt) {
+                                               String material, Integer minProt, Integer maxProt) {
         return items.stream()
                 .filter(item -> (minPrice == null || item.getPrice() >= minPrice))
                 .filter(item -> (maxPrice == null || item.getPrice() <= maxPrice))
@@ -296,8 +304,12 @@ public class KnightApp extends Application {
                 .filter(item -> (type == null || type.isEmpty() || item.getClass().getSimpleName().equalsIgnoreCase(type)))
                 .filter(item -> (material == null || material.isEmpty() || item.getMaterial().toLowerCase().contains(material.toLowerCase())))
                 .filter(item -> {
-                    if (minProt == null) return true;
-                    if (item instanceof Armor) return ((Armor) item).getDefense() >= minProt;
+                    if (minProt == null && maxProt == null) return true;
+                    if (item instanceof Armor armor) {
+                        int defense = armor.getDefense();
+                        return (minProt == null || defense >= minProt)
+                                && (maxProt == null || defense <= maxProt);
+                    }
                     return false;
                 })
                 .collect(Collectors.toList());
@@ -312,7 +324,22 @@ public class KnightApp extends Application {
         materialSearchField.clear();
         typeSearchCombo.setValue("");
         minProtField.clear();
+        maxProtField.clear();
         LoggerService.logInfo("Показано весь каталог амуніції: " + allAmmunition.size() + " предметів");
+    }
+
+    private void updateProtectionFilterAvailability() {
+        boolean weaponTypeSelected = isWeaponTypeSelected(typeSearchCombo.getValue());
+        minProtField.setDisable(weaponTypeSelected);
+        maxProtField.setDisable(weaponTypeSelected);
+        if (weaponTypeSelected) {
+            minProtField.clear();
+            maxProtField.clear();
+        }
+    }
+
+    private boolean isWeaponTypeSelected(String type) {
+        return "Sword".equalsIgnoreCase(type) || "Weapon".equalsIgnoreCase(type);
     }
     
     private void loadAllAmmunitionCatalog() {
