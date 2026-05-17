@@ -463,40 +463,65 @@ public class KnightApp extends Application {
     }
 
     private void compareKits() {
-        Knight opponent = new Knight("Драконячий Воїн");
-        
-        // Екіпірування противника найкращими драконячими предметами з нового каталогу
-        allAmmunition.stream()
-            .filter(item -> item.getName().equals("Меч із драконячої кістки"))
-            .findFirst()
-            .ifPresent(opponent::equip);
-            
-        allAmmunition.stream()
-            .filter(item -> item.getName().equals("Драконяча броня імператора"))
-            .findFirst()
-            .ifPresent(opponent::equip);
-            
-        allAmmunition.stream()
-            .filter(item -> item.getName().equals("Драконячий бойовий шолом"))
-            .findFirst()
-            .ifPresent(opponent::equip);
-            
-        allAmmunition.stream()
-            .filter(item -> item.getName().equals("Драконячий щит володаря"))
-            .findFirst()
-            .ifPresent(opponent::equip);
-            
-        allAmmunition.stream()
-            .filter(item -> item.getName().equals("Драконячі чоботи володаря"))
-            .findFirst()
-            .ifPresent(opponent::equip);
-        
+        List<Knight> opponents = repository.getAllKnights().stream()
+                .filter(candidate -> knight.getId() <= 0 || candidate.getId() != knight.getId())
+                .toList();
+
+        if (opponents.isEmpty()) {
+            showInputErrors("Немає інших воїнів у базі для порівняння.");
+            return;
+        }
+
+        Dialog<Knight> selectionDialog = new Dialog<>();
+        selectionDialog.setTitle("Порівняння комплектів");
+        selectionDialog.setHeaderText("Виберіть воїна для порівняння");
+
+        ComboBox<Knight> opponentCombo = new ComboBox<>(FXCollections.observableArrayList(opponents));
+        opponentCombo.setId("opponentKnightCombo");
+        opponentCombo.getSelectionModel().selectFirst();
+        opponentCombo.setMaxWidth(Double.MAX_VALUE);
+        opponentCombo.setCellFactory(param -> new ListCell<>() {
+            @Override
+            protected void updateItem(Knight item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : formatKnightChoice(item));
+            }
+        });
+        opponentCombo.setButtonCell(new ListCell<>() {
+            @Override
+            protected void updateItem(Knight item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : formatKnightChoice(item));
+            }
+        });
+
+        selectionDialog.getDialogPane().setContent(new VBox(8,
+                new Label("Воїн із бази:"),
+                opponentCombo
+        ));
+        selectionDialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+        selectionDialog.setResultConverter(button -> button == ButtonType.OK ? opponentCombo.getValue() : null);
+
+        Optional<Knight> selectedOpponent = selectionDialog.showAndWait();
+        if (selectedOpponent.isEmpty()) {
+            return;
+        }
+
+        Knight opponent = selectedOpponent.get();
         String comparisonResult = Knight.compareKits(knight, opponent);
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setTitle("Порівняння комплектів");
-        alert.setHeaderText("Ваш комплект проти Драконячого Воїна");
+        alert.setHeaderText(knight.getName() + " vs " + opponent.getName());
         alert.setContentText(comparisonResult);
         alert.showAndWait();
+    }
+
+    private String formatKnightChoice(Knight item) {
+        return String.format("%s (Атака: %d, Захист: %d, Вага комплекту: %.1f кг)",
+                item.getName(),
+                item.calculateAttack(),
+                item.calculateDefense(),
+                item.calculateTotalWeight());
     }
 
     private void saveToFile() {

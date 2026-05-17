@@ -40,6 +40,7 @@ class KnightAppGuiTest extends ApplicationTest {
         DatabaseInitializer.initialize();
 
         KnightRepository repository = new KnightRepository();
+        repository.saveKnight(new Knight("Opponent Knight", 185, 90, 65, 45));
         repository.saveKnight(new Knight("Gui Knight", 180, 80, 50, 50));
 
         app = new KnightApp();
@@ -206,9 +207,8 @@ class KnightAppGuiTest extends ApplicationTest {
 
         interact(() -> assertTrue(equipment.getItems().stream().anyMatch(item -> item.getName().equals("Edited boots"))));
 
-        closeNextDialogLater();
+        confirmSelectionAndCloseResultLater();
         clickOn("#compareKitsButton");
-        closeSecondaryWindows();
     }
 
     @Test
@@ -296,6 +296,23 @@ class KnightAppGuiTest extends ApplicationTest {
 
     private void closeNextDialogLater() {
         interact(this::scheduleDialogClose);
+    }
+
+    private void confirmSelectionAndCloseResultLater() {
+        interact(() -> javafx.application.Platform.runLater(() -> {
+            new ArrayList<>(Window.getWindows()).stream()
+                    .filter(Window::isShowing)
+                    .filter(window -> window.getScene() != null)
+                    .map(window -> window.getScene().getRoot())
+                    .filter(DialogPane.class::isInstance)
+                    .map(DialogPane.class::cast)
+                    .findFirst()
+                    .map(dialogPane -> (Button) dialogPane.lookupButton(javafx.scene.control.ButtonType.OK))
+                    .ifPresent(okButton -> {
+                        okButton.fire();
+                        javafx.application.Platform.runLater(this::scheduleDialogClose);
+                    });
+        }));
     }
 
     private void scheduleDialogClose() {
