@@ -42,6 +42,25 @@ class DatabaseAndRepositoryTest {
     void initializerCreatesFullAmmunitionCatalogOnce() throws Exception {
         assertDoesNotThrow(DatabaseInitializer::new);
         DatabaseInitializer.initialize();
+        DatabaseInitializer.initialize();
+
+        try (Connection connection = DatabaseConnection.connect();
+             Statement statement = connection.createStatement();
+             ResultSet rs = statement.executeQuery("SELECT COUNT(*) FROM ammunition")) {
+            assertTrue(rs.next());
+            assertEquals(25, rs.getInt(1));
+        }
+    }
+
+    @Test
+    void initializerRebuildsCatalogWhenItemCountIsWrong() throws Exception {
+        try (Connection connection = DatabaseConnection.connect();
+             Statement statement = connection.createStatement()) {
+            statement.executeUpdate("DELETE FROM knight_equipment");
+            statement.executeUpdate("DELETE FROM ammunition WHERE id IN (SELECT id FROM ammunition LIMIT 1)");
+        }
+
+        DatabaseInitializer.initialize();
 
         try (Connection connection = DatabaseConnection.connect();
              Statement statement = connection.createStatement();
@@ -104,5 +123,55 @@ class DatabaseAndRepositoryTest {
             assertEquals("Updated armor", rs.getString("name"));
             assertEquals(25, rs.getInt("protection_level"));
         }
+    }
+
+    @Test
+    void repositoryUpdatesExistingKnightAndEquipmentLinks() {
+        KnightRepository repository = new KnightRepository();
+        Knight knight = new Knight("Before update", 180, 80, 50, 50);
+        knight.equip(new Sword("First sword", 3.0, 300.0, "Iron", 30));
+
+        repository.saveKnight(knight);
+        knight.setName("After update");
+        knight.setStrength(80);
+        knight.unequip(knight.getEquipment().get(0));
+        knight.equip(new Shield("Updated shield", 5.0, 450.0, "Steel", 40));
+        repository.saveKnight(knight);
+
+        Knight loaded = repository.getAllKnights().stream()
+                .filter(item -> item.getId() == knight.getId())
+                .findFirst()
+                .orElseThrow();
+
+        assertEquals("After update", loaded.getName());
+        assertEquals(160, loaded.calculateAttack());
+        assertEquals(1, loaded.getEquipment().size());
+        assertTrue(loaded.getEquipment().get(0) instanceof Shield);
+    }
+
+    @Test
+    void repositorySavesWeaponAndMapsUnknownTypeAsArmor() throws Exception {
+        KnightRepository repository = new KnightRepository();
+        Weapon weapon = new Weapon("Training axe", 4.0, 250.0, "Iron", 35);
+        repository.saveAmmunition(weapon);
+
+        try (Connection connection = DatabaseConnection.connect();
+             Statement statement = connection.createStatement()) {
+            statement.executeUpdate("""
+                    INSERT INTO ammunition (name, type, material, weight, price, protection_level, damage)
+                    VALUES ('Unknown defensive item', 'Unknown', 'Steel', 7.0, 500.0, 44, 0)
+                    """);
+        }
+
+        List<Ammunition> ammunition = repository.getAllAmmunition();
+
+        assertTrue(ammunition.stream().anyMatch(item ->
+                item instanceof Weapon weaponItem
+                        && weaponItem.getName().equals("Training axe")
+                        && weaponItem.getDamage() == 35));
+        assertTrue(ammunition.stream().anyMatch(item ->
+                item instanceof Armor armor
+                        && armor.getName().equals("Unknown defensive item")
+                        && armor.getDefense() == 44));
     }
 }

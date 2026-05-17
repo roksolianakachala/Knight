@@ -9,7 +9,10 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.Button;
 import javafx.stage.Window;
 import model.Ammunition;
+import model.Helmet;
 import model.Knight;
+import model.Shield;
+import model.Sword;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.testfx.framework.junit5.ApplicationTest;
@@ -307,6 +310,52 @@ class KnightAppGuiTest extends ApplicationTest {
     }
 
     @Test
+    void createsSwordHelmetAndShieldFromCustomAmmunitionDialog() {
+        ListView<Ammunition> equipment = lookup("#ammunitionListView").query();
+
+        addCustomAmmunition("Sword", "Custom sword", "3.0", "500", "Steel", "40");
+        addCustomAmmunition("Helmet", "Custom helmet", "2.0", "250", "Steel", "20");
+        addCustomAmmunition("Shield", "Custom shield", "4.0", "350", "Wood", "30");
+
+        interact(() -> {
+            assertTrue(equipment.getItems().stream().anyMatch(Sword.class::isInstance));
+            assertTrue(equipment.getItems().stream().anyMatch(Helmet.class::isInstance));
+            assertTrue(equipment.getItems().stream().anyMatch(Shield.class::isInstance));
+        });
+    }
+
+    @Test
+    void loadFromFileCoversSwordAndMalformedNumericData() throws Exception {
+        Files.writeString(Path.of("equipment.txt"), "Sword;Loaded sword;3.0;500.0;Steel;45");
+
+        interact(() -> assertDoesNotThrow(() -> invokePrivate("loadFromFile")));
+        interact(() -> {
+            Knight knight = assertDoesNotThrow(() -> (Knight) getPrivateField("knight"));
+            assertEquals(1, knight.getEquipment().size());
+            assertTrue(knight.getEquipment().get(0) instanceof Sword);
+        });
+
+        Files.writeString(Path.of("equipment.txt"), "Sword;Broken sword;bad;500.0;Steel;45");
+        interact(() -> {
+            scheduleDialogClose();
+            assertDoesNotThrow(() -> invokePrivate("loadFromFile"));
+        });
+        closeSecondaryWindows();
+    }
+
+    @Test
+    void compareKitsShowsErrorWhenThereAreNoOtherKnights() throws Exception {
+        Files.deleteIfExists(Path.of("knight_database.db"));
+        DatabaseInitializer.initialize();
+
+        interact(() -> {
+            scheduleDialogClose();
+            assertDoesNotThrow(() -> invokePrivate("compareKits"));
+        });
+        closeSecondaryWindows();
+    }
+
+    @Test
     void coversValidationFileAndEmptyStateBranches() throws Exception {
         Files.deleteIfExists(Path.of("equipment.txt"));
 
@@ -363,6 +412,19 @@ class KnightAppGuiTest extends ApplicationTest {
         TextField field = lookup(query).queryAs(TextField.class);
         field.clear();
         field.setText(text);
+    }
+
+    private void addCustomAmmunition(String type, String name, String weight, String price, String material, String special) {
+        clickOn("#addAmmoButton");
+        interact(() -> {
+            lookup("#ammoTypeCombo").queryAs(ComboBox.class).setValue(type);
+            setText("#ammoNameField", name);
+            setText("#ammoWeightField", weight);
+            setText("#ammoPriceField", price);
+            setText("#ammoMaterialField", material);
+            setText("#ammoSpecialField", special);
+        });
+        clickOn("#ammoSaveButton");
     }
 
     private void closeSecondaryWindows() {
