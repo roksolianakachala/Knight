@@ -51,46 +51,18 @@ public class LoggerService {
     }
 
     private static void sendEmailNotification(String subject, Throwable throwable) {
-        if (!EMAIL_ENABLED) {
-            logger.info("Email сповіщення вимкнено в конфігурації. Встановіть mail.enabled=true для активації.");
+        String skipReason = getEmailSkipReason(EMAIL_ENABLED, EMAIL_PASSWORD);
+        if (skipReason != null) {
+            logger.warn(skipReason);
             return;
         }
 
-        if (EMAIL_PASSWORD.isEmpty()) {
-            logger.warn("Email пароль не налаштовано. Неможливо відправити сповіщення.");
-            return;
-        }
+        Properties prop = createMailProperties();
 
-        Properties prop = new Properties();
-        prop.put("mail.smtp.auth", "true");
-        prop.put("mail.smtp.starttls.enable", "true");
-        prop.put("mail.smtp.host", SMTP_HOST);
-        prop.put("mail.smtp.port", SMTP_PORT);
-        prop.put("mail.smtp.ssl.trust", SMTP_HOST);
-
-        Session session = Session.getInstance(prop, new Authenticator() {
-            @Override
-            protected PasswordAuthentication getPasswordAuthentication() {
-                return new PasswordAuthentication(EMAIL_FROM, EMAIL_PASSWORD);
-            }
-        });
+        Session session = Session.getInstance(prop, createMailAuthenticator());
 
         try {
-            Message message = new MimeMessage(session);
-            message.setFrom(new InternetAddress(EMAIL_FROM));
-            message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(EMAIL_TO));
-            message.setSubject("[Knight App] " + subject);
-
-            StringBuilder content = new StringBuilder();
-            content.append("КРИТИЧНА ПОМИЛКА в додатку Knight\n\n");
-            content.append("Час: ").append(java.time.LocalDateTime.now()).append("\n\n");
-            content.append("Помилка: ").append(throwable.toString()).append("\n\n");
-            content.append("Stack trace:\n");
-            for (StackTraceElement element : throwable.getStackTrace()) {
-                content.append("  ").append(element.toString()).append("\n");
-            }
-            
-            message.setText(content.toString());
+            Message message = createEmailMessage(session, subject, throwable);
             
             logger.info("Спроба відправити email сповіщення про критичну помилку...");
             Transport.send(message);
@@ -99,5 +71,55 @@ public class LoggerService {
         } catch (MessagingException e) {
             logger.error("Не вдалося відправити email сповіщення", e);
         }
+    }
+
+    static Properties createMailProperties() {
+        Properties prop = new Properties();
+        prop.put("mail.smtp.auth", "true");
+        prop.put("mail.smtp.starttls.enable", "true");
+        prop.put("mail.smtp.host", SMTP_HOST);
+        prop.put("mail.smtp.port", SMTP_PORT);
+        prop.put("mail.smtp.ssl.trust", SMTP_HOST);
+        return prop;
+    }
+
+    static Authenticator createMailAuthenticator() {
+        return new Authenticator() {
+            @Override
+            protected PasswordAuthentication getPasswordAuthentication() {
+                return new PasswordAuthentication(EMAIL_FROM, EMAIL_PASSWORD);
+            }
+        };
+    }
+
+    static String getEmailSkipReason(boolean emailEnabled, String emailPassword) {
+        if (!emailEnabled) {
+            return "Email сповіщення вимкнено в конфігурації. Встановіть mail.enabled=true для активації.";
+        }
+        if (emailPassword.isEmpty()) {
+            return "Email пароль не налаштовано. Неможливо відправити сповіщення.";
+        }
+        return null;
+    }
+
+    static Message createEmailMessage(Session session, String subject, Throwable throwable) throws MessagingException {
+        Message message = new MimeMessage(session);
+        message.setFrom(new InternetAddress(EMAIL_FROM));
+        message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(EMAIL_TO));
+        message.setSubject("[Knight App] " + subject);
+        message.setText(buildEmailContent(throwable));
+        return message;
+    }
+
+    static String buildEmailContent(Throwable throwable) {
+        StringBuilder content = new StringBuilder();
+        content.append("КРИТИЧНА ПОМИЛКА в додатку Knight\n\n");
+        content.append("Час: ").append(java.time.LocalDateTime.now()).append("\n\n");
+        content.append("Помилка: ").append(throwable).append("\n\n");
+        content.append("Stack trace:\n");
+        for (StackTraceElement element : throwable.getStackTrace()) {
+            content.append("  ").append(element).append("\n");
+        }
+        return content.toString();
     }
 }

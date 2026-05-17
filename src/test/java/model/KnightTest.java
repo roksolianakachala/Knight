@@ -82,6 +82,18 @@ class KnightTest {
     }
 
     @Test
+    void refusesInvalidEquipmentUpdateInsideExistingSlot() {
+        Knight light = new Knight("Light", 175, 60, 40, 40);
+        Boots boots = new Boots("Valid boots", 1.0, 100.0, "Leather", 5);
+        Armor tooHeavyArmor = new Armor("Too heavy", 12.0, 500.0, "Steel", 50);
+
+        light.equip(boots);
+
+        assertThrows(IllegalArgumentException.class, () -> light.updateAmmunition(0, tooHeavyArmor));
+        assertEquals(List.of(boots), light.getEquipment());
+    }
+
+    @Test
     void equipmentCanBeEquippedUpdatedRemovedAndCopied() {
         Knight knight = new Knight("Arthur");
         Sword sword = new Sword("Sword", 3.0, 500.0, "Steel", 40);
@@ -153,6 +165,7 @@ class KnightTest {
         assertTrue(knight.findByCriteria(null, null, null, null, null, "Gold", null).isEmpty());
         assertEquals(List.of(shield), knight.findByCriteria(null, null, null, null, "Shield", "steel", 50));
         assertTrue(knight.findByCriteria(null, null, null, null, "Sword", null, 10).isEmpty());
+        assertTrue(knight.findByCriteria(null, null, null, null, null, null, 70).isEmpty());
         assertEquals(3, knight.findByCriteria(null, null, null, null, "", "", null).size());
     }
 

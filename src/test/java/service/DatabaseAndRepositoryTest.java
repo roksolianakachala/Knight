@@ -30,6 +30,8 @@ class DatabaseAndRepositoryTest {
 
     @Test
     void databaseConnectionOpensSqliteConnection() throws Exception {
+        assertDoesNotThrow(DatabaseConnection::new);
+
         try (Connection connection = DatabaseConnection.connect()) {
             assertFalse(connection.isClosed());
             assertTrue(connection.getMetaData().getURL().contains("knight_database.db"));
@@ -38,6 +40,7 @@ class DatabaseAndRepositoryTest {
 
     @Test
     void initializerCreatesFullAmmunitionCatalogOnce() throws Exception {
+        assertDoesNotThrow(DatabaseInitializer::new);
         DatabaseInitializer.initialize();
 
         try (Connection connection = DatabaseConnection.connect();
@@ -51,6 +54,7 @@ class DatabaseAndRepositoryTest {
     @Test
     void repositoryMapsAllAmmunitionTypesFromCatalog() {
         KnightRepository repository = new KnightRepository();
+        assertDoesNotThrow(repository::createTables);
 
         List<Ammunition> ammunition = repository.getAllAmmunition();
 

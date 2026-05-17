@@ -168,7 +168,7 @@ class KnightAppGuiTest extends ApplicationTest {
 
         interact(() -> catalog.getSelectionModel().select(0));
         clickOn("#equipFromCatalogButton");
-        interact(() -> catalog.getSelectionModel().select(5));
+        interact(() -> catalog.getSelectionModel().select(6));
         clickOn("#equipFromCatalogButton");
 
         interact(() -> {
@@ -212,10 +212,36 @@ class KnightAppGuiTest extends ApplicationTest {
     }
 
     @Test
+    void rejectsCustomAmmunitionWhenWeightDoesNotMatchKnightType() {
+        ListView<Ammunition> equipment = lookup("#ammunitionListView").query();
+        int initialSize = equipment.getItems().size();
+
+        clickOn("#addAmmoButton");
+        interact(() -> {
+            lookup("#ammoTypeCombo").queryAs(ComboBox.class).setValue("Boots");
+            assertTrue(lookup("#allowedWeightLabel").queryAs(Label.class).getText().contains("1.0-4.0 кг"));
+            setText("#ammoNameField", "Too heavy boots");
+            setText("#ammoWeightField", "9.0");
+            setText("#ammoPriceField", "120");
+            setText("#ammoMaterialField", "Steel");
+            setText("#ammoSpecialField", "12");
+            scheduleDialogClose();
+        });
+
+        clickOn("#ammoSaveButton");
+        closeSecondaryWindows();
+
+        interact(() -> assertEquals(initialSize, equipment.getItems().size()));
+    }
+
+    @Test
     void invokesRemainingGuiBranchesDirectlyOnFxThread() {
         interact(() -> {
             assertDoesNotThrow(() -> invokePrivate("drawKnight", new Class<?>[]{Knight.class}, new Knight("Draw", 190, 95, 80, 60)));
             assertDoesNotThrow(() -> invokePrivate("loadAllKnights"));
+            assertEquals(false, assertDoesNotThrow(() -> invokePrivate("isWeaponTypeSelected", new Class<?>[]{String.class}, "Armor")));
+            assertEquals(true, assertDoesNotThrow(() -> invokePrivate("isWeaponTypeSelected", new Class<?>[]{String.class}, "Weapon")));
+            assertEquals(false, assertDoesNotThrow(() -> invokePrivate("isWeaponTypeSelected", new Class<?>[]{String.class}, (Object) null)));
         });
 
         closeNextDialogLater();
@@ -225,6 +251,59 @@ class KnightAppGuiTest extends ApplicationTest {
             setText("#minPriceField", "");
         });
         closeSecondaryWindows();
+    }
+
+    @Test
+    void ignoresEquipmentActionsWhenNothingIsSelected() {
+        ListView<Ammunition> catalog = lookup("#catalogListView").query();
+        ListView<Ammunition> equipment = lookup("#ammunitionListView").query();
+
+        interact(() -> {
+            catalog.getSelectionModel().clearSelection();
+            equipment.getSelectionModel().clearSelection();
+        });
+
+        clickOn("#equipFromCatalogButton");
+        clickOn("#editAmmoButton");
+        clickOn("#deleteAmmoButton");
+
+        interact(() -> assertTrue(equipment.getItems().isEmpty()));
+    }
+
+    @Test
+    void createsDefaultArmorAndCoversValidationHelperBranches() {
+        ListView<Ammunition> equipment = lookup("#ammunitionListView").query();
+
+        clickOn("#addAmmoButton");
+        interact(() -> {
+            assertTrue(lookup("#allowedWeightLabel").queryAs(Label.class).getText().contains("7.0-16.0 кг"));
+            setText("#ammoNameField", "Valid custom armor");
+            setText("#ammoWeightField", "9.0");
+            setText("#ammoPriceField", "900");
+            setText("#ammoMaterialField", "Steel");
+            setText("#ammoSpecialField", "45");
+        });
+        clickOn("#ammoSaveButton");
+
+        interact(() -> {
+            assertTrue(equipment.getItems().stream().anyMatch(item -> item.getName().equals("Valid custom armor")));
+
+            TextField doubleField = new TextField("999");
+            TextField integerField = new TextField("0");
+            StringBuilder errors = new StringBuilder();
+            assertDoesNotThrow(() -> invokePrivate(
+                    "validateDoubleInRange",
+                    new Class<?>[]{TextField.class, String.class, double.class, double.class, StringBuilder.class},
+                    doubleField, "Double", 1.0, 10.0, errors
+            ));
+            assertDoesNotThrow(() -> invokePrivate(
+                    "validateIntegerInRange",
+                    new Class<?>[]{TextField.class, String.class, int.class, int.class, StringBuilder.class},
+                    integerField, "Integer", 1, 10, errors
+            ));
+            assertTrue(errors.toString().contains("Double"));
+            assertTrue(errors.toString().contains("Integer"));
+        });
     }
 
     @Test

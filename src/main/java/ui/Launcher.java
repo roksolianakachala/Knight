@@ -4,10 +4,15 @@ import service.DatabaseConnection;
 import service.DatabaseInitializer;
 import service.LoggerService;
 import java.sql.Connection;
+import java.util.function.Consumer;
 
 public class Launcher {
 
     public static void main(String[] args) {
+        run(args, KnightApp::main);
+    }
+
+    static void run(String[] args, Consumer<String[]> appLauncher) {
         DatabaseInitializer.initialize();
         try {
             try (Connection conn = DatabaseConnection.connect()) {
@@ -16,7 +21,7 @@ public class Launcher {
                 System.err.println("Database connection failed: " + dbEx.getMessage());
             }
 
-            KnightApp.main(args);
+            appLauncher.accept(args);
         } catch (Exception e) {
             LoggerService.logCriticalError("Unexpected application error", e);
         }
