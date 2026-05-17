@@ -58,6 +58,13 @@ public class KnightApp extends Application {
     public void start(Stage stage) {
         LoggerService.logInfo("Додаток запущено.");
         configureControlIds();
+        statsLabel.setMinWidth(145);
+        statsLabel.setPrefWidth(160);
+        statsLabel.setWrapText(true);
+        statsLabel.setTextOverrun(OverrunStyle.CLIP);
+        knightPane.setMinSize(230, 360);
+        knightPane.setPrefSize(230, 360);
+        knightPane.setMaxWidth(230);
         overweightWarning.setStyle("-fx-text-fill: red; -fx-font-weight: bold;");
         
         // repository.createTables(); // Тепер ініціалізація бази йде через DatabaseInitializer
@@ -66,6 +73,8 @@ public class KnightApp extends Application {
 
         VBox knightParamsBox = new VBox(8);
         knightParamsBox.setPadding(new Insets(10));
+        knightParamsBox.setPrefWidth(150);
+        knightParamsBox.setMaxWidth(150);
         knightParamsBox.getChildren().addAll(
                 new Label("Параметри лицаря"),
                 new Label("Ім'я:"), nameField,
@@ -96,6 +105,8 @@ public class KnightApp extends Application {
         VBox knightsManagementBox = new VBox(8);
         knightsManagementBox.setPadding(new Insets(10));
         knightsManagementBox.setStyle("-fx-border-color: lightblue; -fx-border-radius: 5;");
+        knightsManagementBox.setPrefWidth(260);
+        knightsListView.setPrefSize(230, 500);
         knightsManagementBox.getChildren().addAll(
                 new Label("Список лицарів"),
                 knightsListView,
@@ -144,6 +155,8 @@ public class KnightApp extends Application {
         VBox searchBox = new VBox(5);
         searchBox.setPadding(new Insets(10));
         searchBox.setStyle("-fx-border-color: lightgray; -fx-border-radius: 5;");
+        searchBox.setPrefWidth(470);
+        catalogListView.setPrefSize(440, 500);
         typeSearchCombo.valueProperty().addListener((obs, oldType, newType) -> updateProtectionFilterAvailability());
         updateProtectionFilterAvailability();
         
@@ -182,6 +195,8 @@ public class KnightApp extends Application {
 
         VBox ammoActionsBox = new VBox(10);
         ammoActionsBox.setPadding(new Insets(10));
+        ammoActionsBox.setPrefWidth(430);
+        ammunitionListView.setPrefSize(400, 500);
         
         Button addAmmoButton = new Button("Додати амуніцію");
         addAmmoButton.setId("addAmmoButton");
@@ -240,7 +255,7 @@ public class KnightApp extends Application {
             compareKitsButton
         );
 
-        HBox mainContent = new HBox(20);
+        HBox mainContent = new HBox(12);
         mainContent.getChildren().addAll(knightParamsBox, knightPane, statsLabel, ammoActionsBox, searchBox, knightsManagementBox);
         mainContent.setPadding(new Insets(15));
 
@@ -640,7 +655,8 @@ public class KnightApp extends Application {
                         "\nАтака: " + knight.calculateAttack() +
                         "\nЗахист: " + knight.calculateDefense() +
                         "\nШвидкість: " + knight.calculateSpeed() +
-                        "\nТип статури: " + knight.getBodyType()
+                        "\nТип лицаря: " + knight.getKnightTypeNumber() +
+                        "\n" + knight.getKnightTypeName()
         );
     }
 
@@ -716,7 +732,8 @@ public class KnightApp extends Application {
                         "\nАтака: " + knight.calculateAttack() +
                         "\nЗахист: " + knight.calculateDefense() +
                         "\nШвидкість: " + knight.calculateSpeed() +
-                        "\nТип статури: " + knight.getBodyType()
+                        "\nТип лицаря: " + knight.getKnightTypeNumber() +
+                        "\n" + knight.getKnightTypeName()
         );
 
         // Увімкнути режим редагування
@@ -749,23 +766,24 @@ public class KnightApp extends Application {
 
         double bodyHeight = knight.getHeight() / 2;
         double bodyWidth = knight.getWeight() / 2;
+        double centerX = 115;
 
-        Circle head = new Circle(150, 60, 25);
+        Circle head = new Circle(centerX, 60, 25);
 
         Rectangle body = new Rectangle(
-                150 - bodyWidth / 2,
+                centerX - bodyWidth / 2,
                 90,
                 bodyWidth,
                 bodyHeight
         );
-        Line leftLeg = new Line(135, 90 + bodyHeight, 110, 90 + bodyHeight + 70);
-        Line rightLeg = new Line(165, 90 + bodyHeight, 190, 90 + bodyHeight + 70);
+        Line leftLeg = new Line(centerX - 15, 90 + bodyHeight, centerX - 40, 90 + bodyHeight + 70);
+        Line rightLeg = new Line(centerX + 15, 90 + bodyHeight, centerX + 40, 90 + bodyHeight + 70);
 
-        Line leftArm = new Line(150 - bodyWidth / 2, 120, 80, 170);
-        Line rightArm = new Line(150 + bodyWidth / 2, 120, 220, 170);
+        Line leftArm = new Line(centerX - bodyWidth / 2, 120, centerX - 70, 170);
+        Line rightArm = new Line(centerX + bodyWidth / 2, 120, centerX + 70, 170);
 
-        Rectangle sword = new Rectangle(220, 120, 8, 60 + (double) knight.getStrength() / 2);
-        Rectangle shield = new Rectangle(65, 145, 35, 55);
+        Rectangle sword = new Rectangle(centerX + 90, 120, 8, 60 + (double) knight.getStrength() / 2);
+        Rectangle shield = new Rectangle(centerX - 105, 145, 35, 55);
 
         knightPane.getChildren().addAll(
                 head, body, leftLeg, rightLeg, leftArm, rightArm, sword, shield

@@ -55,10 +55,26 @@ public class Knight {
     }
 
     public String getBodyType() {
+        return getKnightTypeDescription();
+    }
+
+    public int getKnightTypeNumber() {
         double bmi = weight / Math.pow(height / 100, 2);
-        if (bmi < 18.5) return "Худорлявий лицар";
-        if (bmi < 25) return "Звичайна статура";
-        return "Міцний / важкий лицар";
+        if (bmi < 18.5) return 1;
+        if (bmi < 25) return 2;
+        return 3;
+    }
+
+    public String getKnightTypeName() {
+        return switch (getKnightTypeNumber()) {
+            case 1 -> "легкий лицар";
+            case 2 -> "середній лицар";
+            default -> "важкий лицар";
+        };
+    }
+
+    public String getKnightTypeDescription() {
+        return getKnightTypeNumber() + " — " + getKnightTypeName();
     }
 
 

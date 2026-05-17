@@ -48,9 +48,12 @@ class KnightTest {
         Knight normal = new Knight("Normal", 180, 75, 40, 40);
         Knight heavy = new Knight("Heavy", 165, 90, 40, 40);
 
-        assertNotEquals(slim.getBodyType(), normal.getBodyType());
-        assertNotEquals(normal.getBodyType(), heavy.getBodyType());
-        assertNotEquals(slim.getBodyType(), heavy.getBodyType());
+        assertEquals(1, slim.getKnightTypeNumber());
+        assertEquals("1 — легкий лицар", slim.getKnightTypeDescription());
+        assertEquals(2, normal.getKnightTypeNumber());
+        assertEquals("2 — середній лицар", normal.getBodyType());
+        assertEquals(3, heavy.getKnightTypeNumber());
+        assertEquals("3 — важкий лицар", heavy.getKnightTypeDescription());
     }
 
     @Test
