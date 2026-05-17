@@ -165,10 +165,14 @@ public class KnightApp extends Application {
         equipFromCatalogBtn.setOnAction(e -> {
             Ammunition selected = catalogListView.getSelectionModel().getSelectedItem();
             if (selected != null) {
-                knight.equip(selected);
-                repository.saveKnight(knight);
-                updateEquipmentList(knight.getEquipment());
-                LoggerService.logInfo("Екіпіровано: " + selected.getName());
+                try {
+                    knight.equip(selected);
+                    repository.saveKnight(knight);
+                    updateEquipmentList(knight.getEquipment());
+                    LoggerService.logInfo("Екіпіровано: " + selected.getName());
+                } catch (IllegalArgumentException exception) {
+                    showInputErrors(exception.getMessage());
+                }
             }
         });
         
@@ -421,6 +425,15 @@ public class KnightApp extends Application {
         typeCombo.setId("ammoTypeCombo");
         if (existing != null) typeCombo.setValue(existing.getClass().getSimpleName());
         else typeCombo.setValue("Armor");
+
+        Label allowedWeightLabel = new Label();
+        allowedWeightLabel.setId("allowedWeightLabel");
+        Runnable updateAllowedWeightLabel = () -> allowedWeightLabel.setText(
+                "Допустима вага для " + knight.getKnightTypeName() + ": "
+                        + AmmunitionWeightRules.getAllowedRange(knight, typeCombo.getValue()).format()
+        );
+        typeCombo.valueProperty().addListener((obs, oldType, newType) -> updateAllowedWeightLabel.run());
+        updateAllowedWeightLabel.run();
         
         TextField specialF = new TextField(); // damage or defense
         specialF.setId("ammoSpecialField");
@@ -438,6 +451,11 @@ public class KnightApp extends Application {
                 String mat = materialF.getText();
                 int spec = Integer.parseInt(specialF.getText());
                 String type = typeCombo.getValue();
+
+                if (!AmmunitionWeightRules.canUse(knight, type, w)) {
+                    showInputErrors(AmmunitionWeightRules.buildValidationMessage(knight, type, w));
+                    return;
+                }
                 
                 Ammunition newItem = switch (type) {
                     case "Sword" -> new Sword(name, w, p, mat, spec);
@@ -465,7 +483,7 @@ public class KnightApp extends Application {
         root.getChildren().addAll(
             new Label("Тип:"), typeCombo,
             new Label("Назва:"), nameF,
-            new Label("Вага:"), weightF,
+            new Label("Вага:"), weightF, allowedWeightLabel,
             new Label("Ціна:"), priceF,
             new Label("Матеріал:"), materialF,
             new Label("Параметр (Урон/Захист):"), specialF,

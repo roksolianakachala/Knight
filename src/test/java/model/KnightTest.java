@@ -57,6 +57,31 @@ class KnightTest {
     }
 
     @Test
+    void ammunitionWeightRulesDependOnKnightTypeAndAmmunitionType() {
+        Knight light = new Knight("Light", 175, 60, 40, 40);
+        Knight medium = new Knight("Medium", 180, 80, 40, 40);
+        Knight heavy = new Knight("Heavy", 185, 100, 40, 40);
+
+        assertTrue(AmmunitionWeightRules.canUse(light, "Sword", 2.0));
+        assertFalse(AmmunitionWeightRules.canUse(light, "Armor", 12.0));
+        assertTrue(AmmunitionWeightRules.canUse(medium, "Armor", 12.0));
+        assertTrue(AmmunitionWeightRules.canUse(heavy, "Shield", 10.0));
+        assertEquals("3.0-8.0 кг", AmmunitionWeightRules.getAllowedRange(light, "Armor").format());
+    }
+
+    @Test
+    void refusesEquipmentOutsideAllowedWeightRange() {
+        Knight light = new Knight("Light", 175, 60, 40, 40);
+        Armor heavyArmor = new Armor("Too heavy", 12.0, 500.0, "Steel", 50);
+
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> light.equip(heavyArmor));
+
+        assertTrue(exception.getMessage().contains("легкий лицар"));
+        assertTrue(exception.getMessage().contains("3.0-8.0 кг"));
+        assertTrue(light.getEquipment().isEmpty());
+    }
+
+    @Test
     void equipmentCanBeEquippedUpdatedRemovedAndCopied() {
         Knight knight = new Knight("Arthur");
         Sword sword = new Sword("Sword", 3.0, 500.0, "Steel", 40);

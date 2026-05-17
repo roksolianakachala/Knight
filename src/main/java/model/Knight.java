@@ -59,9 +59,8 @@ public class Knight {
     }
 
     public int getKnightTypeNumber() {
-        double bmi = weight / Math.pow(height / 100, 2);
-        if (bmi < 18.5) return 1;
-        if (bmi < 25) return 2;
+        if (weight < 70) return 1;
+        if (weight < 90) return 2;
         return 3;
     }
 
@@ -79,6 +78,9 @@ public class Knight {
 
 
     public void equip(Ammunition item) {
+        if (!AmmunitionWeightRules.canUse(this, item)) {
+            throw new IllegalArgumentException(AmmunitionWeightRules.buildValidationMessage(this, item));
+        }
         equipment.add(item);
     }
 
@@ -88,6 +90,9 @@ public class Knight {
 
     public void updateAmmunition(int index, Ammunition newItem) {
         if (index >= 0 && index < equipment.size()) {
+            if (!AmmunitionWeightRules.canUse(this, newItem)) {
+                throw new IllegalArgumentException(AmmunitionWeightRules.buildValidationMessage(this, newItem));
+            }
             equipment.set(index, newItem);
         }
     }
